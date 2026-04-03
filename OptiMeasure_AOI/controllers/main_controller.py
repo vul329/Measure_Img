@@ -267,12 +267,14 @@ class MainController(QObject):
         """開啟卡尺抓圓對話框，連接即時預覽與確認信號"""
         if self._image_model.original_image is None:
             return
+        self._remove_caliper_preview()
         from dialogs.caliper_dialog import CaliperCircleDialog
         self._caliper_dialog = CaliperCircleDialog(
             self._image_model.original_image, cx, cy, radius, self._window)
         self._caliper_dialog.detection_updated.connect(self._on_caliper_updated)
         self._caliper_dialog.detection_accepted.connect(self._on_caliper_accepted)
         self._caliper_dialog.rejected.connect(self._on_caliper_rejected)
+        self._caliper_dialog.detection_failed.connect(self._remove_caliper_preview)
         self._caliper_dialog.exec()
 
     def _on_caliper_updated(self, cx: float, cy: float, r: float):

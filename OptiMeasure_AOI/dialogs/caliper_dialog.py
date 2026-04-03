@@ -19,6 +19,8 @@ from utils.image_utils import caliper_find_circle
 class CaliperCircleDialog(QDialog):
     # 即時預覽用：每次偵測完成後發射
     detection_updated = Signal(float, float, float)   # cx, cy, r
+    # 偵測失敗時發射，供 Controller 清除舊預覽
+    detection_failed = Signal()
     # 使用者按確認後發射
     detection_accepted = Signal(float, float, float)  # cx, cy, r
 
@@ -135,16 +137,15 @@ class CaliperCircleDialog(QDialog):
                 f"半徑: {result['radius']:.1f}   "
                 f"吻合點: {result['inliers']} / {result['total']}"
             )
+            self.detection_updated.emit(
+                result['cx'], result['cy'], result['radius'])
         else:
             self._result_label.setText(
                 f"⚠ 偵測失敗（吻合點不足）\n"
                 f"cx: {result['cx']:.1f}   cy: {result['cy']:.1f}\n"
                 f"半徑: {result['radius']:.1f}"
             )
-
-        if result['success']:
-            self.detection_updated.emit(
-                result['cx'], result['cy'], result['radius'])
+            self.detection_failed.emit()
 
     # ──────────────────────────────────────────────
     # 確認
