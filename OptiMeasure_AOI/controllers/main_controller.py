@@ -36,6 +36,8 @@ class MainController(QObject):
         # ── Dialogs（延遲建立，按需開啟）──
         self._enhancement_dialog = None
         self._magnifier_dialog = None
+        self._caliper_dialog = None
+        self._caliper_preview_item = None  # QGraphicsEllipseItem（預覽用）
 
         # ── 連接所有信號 ──
         self._connect_signals()
@@ -159,6 +161,9 @@ class MainController(QObject):
         elif shape_type == 'line':
             self._create_line(params['x1'], params['y1'],
                               params['x2'], params['y2'], color, lw)
+        elif shape_type == 'caliper_circle':
+            self._open_caliper_dialog(
+                params['cx'], params['cy'], params['radius'])
 
     # ──────────────────────────────────────────────
     # 圖形建立（來自參數輸入面板 gen_xxx）
@@ -257,6 +262,51 @@ class MainController(QObject):
             self._magnifier_dialog.set_source_image(self._image_model.original_image)
         self._magnifier_dialog.show()
         self._magnifier_dialog.raise_()
+
+    def _open_caliper_dialog(self, cx: float, cy: float, radius: float):
+        """開啟卡尺抓圓對話框，連接即時預覽與確認信號"""
+        if self._image_model.original_image is None:
+            return
+        from dialogs.caliper_dialog import CaliperCircleDialog
+        self._caliper_dialog = CaliperCircleDialog(
+            self._image_model.original_image, cx, cy, radius, self._window)
+        self._caliper_dialog.detection_updated.connect(self._on_caliper_updated)
+        self._caliper_dialog.detection_accepted.connect(self._on_caliper_accepted)
+        self._caliper_dialog.rejected.connect(self._on_caliper_rejected)
+        self._caliper_dialog.exec()
+
+    def _on_caliper_updated(self, cx: float, cy: float, r: float):
+        """偵測結果更新 → 移除舊預覽 → 繪製新虛線橢圓"""
+        from PySide6.QtCore import Qt, QRectF
+        from PySide6.QtGui import QPen
+        scene = self._window.image_view.graphics_scene
+        if self._caliper_preview_item is not None:
+            scene.removeItem(self._caliper_preview_item)
+            self._caliper_preview_item = None
+        color = self._window.image_view._draw_color
+        lw = self._window.image_view._draw_line_width
+        pen = QPen(color, lw)
+        pen.setStyle(Qt.PenStyle.DashLine)
+        pen.setCosmetic(True)
+        self._caliper_preview_item = scene.addEllipse(
+            QRectF(cx - r, cy - r, 2.0 * r, 2.0 * r), pen)
+
+    def _on_caliper_accepted(self, cx: float, cy: float, r: float):
+        """使用者按確認 → 移除預覽 → 建立正式 CircleItem"""
+        self._remove_caliper_preview()
+        color = self._window.image_view._draw_color
+        lw = self._window.image_view._draw_line_width
+        self._create_circle(cx, cy, r, color, lw)
+
+    def _on_caliper_rejected(self):
+        """使用者取消 → 移除預覽"""
+        self._remove_caliper_preview()
+
+    def _remove_caliper_preview(self):
+        if self._caliper_preview_item is not None:
+            self._window.image_view.graphics_scene.removeItem(
+                self._caliper_preview_item)
+            self._caliper_preview_item = None
 
     def _on_pixel_hovered_for_magnifier(self, px: int, py: int):
         """滑鼠移動 → 更新放大鏡（跟隨模式）"""
