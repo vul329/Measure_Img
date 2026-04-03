@@ -68,7 +68,7 @@ class MagnifierDialog(QDialog):
         layout.addWidget(self._image_label)
 
         # 座標顯示
-        self._coord_label = QLabel("X: --  Y: --")
+        self._coord_label = QLabel("X: --  Y: --  |  Gray: --")
         self._coord_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self._coord_label)
 
@@ -92,7 +92,19 @@ class MagnifierDialog(QDialog):
         if self._source_image is None:
             return
 
-        self._coord_label.setText(f"X: {pixel_x}  Y: {pixel_y}")
+        # 讀取像素灰階值
+        h, w = self._source_image.shape[:2]
+        if 0 <= pixel_y < h and 0 <= pixel_x < w:
+            raw = self._source_image[pixel_y, pixel_x]
+            if self._source_image.ndim == 2:
+                gray = int(raw)
+            else:
+                b, g, r = int(raw[0]), int(raw[1]), int(raw[2])
+                gray = int(0.114 * b + 0.587 * g + 0.299 * r)
+            gray_text = f"Gray: {gray}"
+        else:
+            gray_text = "Gray: --"
+        self._coord_label.setText(f"X: {pixel_x}  Y: {pixel_y}  |  {gray_text}")
 
         # 1. 從原始影像擷取 ROI（不複製整張圖）
         roi = crop_roi(self._source_image, pixel_x, pixel_y, ROI_HALF_SIZE)
