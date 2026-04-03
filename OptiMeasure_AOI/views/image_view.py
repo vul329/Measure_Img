@@ -138,6 +138,11 @@ class ImageView(QGraphicsView):
     def set_draw_line_width(self, width: int):
         self._draw_line_width = width
 
+    def set_background_color(self, color: QColor):
+        """設定圖檔外區域的背景色"""
+        from PySide6.QtGui import QBrush
+        self.setBackgroundBrush(QBrush(color))
+
     # ──────────────────────────────────────────────
     # 滾輪縮放
     # ──────────────────────────────────────────────

@@ -63,6 +63,7 @@ class MainController(QObject):
         toolbar.line_width_changed.connect(self._on_line_width_changed)
         toolbar.enhancement_clicked.connect(self._open_enhancement_dialog)
         toolbar.magnifier_clicked.connect(self._open_magnifier_dialog)
+        toolbar.bg_color_changed.connect(image_view.set_background_color)
 
         # ImageView → 影像載入
         image_view.image_dropped.connect(self._on_image_dropped)
@@ -99,6 +100,8 @@ class MainController(QObject):
 
         # 啟動時將讀取到的顏色同步給 ImageView
         image_view.set_draw_color(toolbar.current_color)
+        # 啟動時套用預設背景色（黑色）
+        image_view.set_background_color(QColor(0, 0, 0))
 
     # ──────────────────────────────────────────────
     # 影像載入

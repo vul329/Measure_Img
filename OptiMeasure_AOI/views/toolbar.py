@@ -25,6 +25,7 @@ class ToolBar(QToolBar):
     line_width_changed = Signal(int)
     enhancement_clicked = Signal()
     magnifier_clicked = Signal()
+    bg_color_changed = Signal(QColor)
 
     def __init__(self, parent=None):
         super().__init__("工具列", parent)
@@ -129,6 +130,33 @@ class ToolBar(QToolBar):
         magnifier_action = QAction("放大鏡", self)
         magnifier_action.triggered.connect(self.magnifier_clicked)
         self.addAction(magnifier_action)
+
+        self.addSeparator()
+
+        # 背景色切換按鈕（黑 ↔ 白）
+        self._bg_is_dark = True
+        self._bg_action = QAction("背景", self)
+        self._bg_action.setToolTip("切換圖檔外背景色（黑/白）")
+        self._update_bg_icon()
+        self._bg_action.triggered.connect(self._on_toggle_bg)
+        self.addAction(self._bg_action)
+
+    def _on_toggle_bg(self):
+        self._bg_is_dark = not self._bg_is_dark
+        self._update_bg_icon()
+        self.bg_color_changed.emit(
+            QColor(0, 0, 0) if self._bg_is_dark else QColor(255, 255, 255))
+
+    def _update_bg_icon(self):
+        """更新背景按鈕的色塊圖示（帶邊框，白色時可見）"""
+        pixmap = QPixmap(24, 24)
+        color = QColor(0, 0, 0) if self._bg_is_dark else QColor(255, 255, 255)
+        pixmap.fill(color)
+        painter = QPainter(pixmap)
+        painter.setPen(QColor(128, 128, 128))
+        painter.drawRect(0, 0, 23, 23)
+        painter.end()
+        self._bg_action.setIcon(QIcon(pixmap))
 
     @property
     def current_color(self) -> QColor:
