@@ -59,6 +59,7 @@ class ToolBar(QToolBar):
             ("正交矩形", "Rect1", ViewMode.DRAW_RECT1, False),
             ("旋轉矩形", "Rect2", ViewMode.DRAW_RECT2, False),
             ("直線", "Line", ViewMode.DRAW_LINE, False),
+            ("卡尺抓圓", "CaliperCircle", ViewMode.CALIPER_CIRCLE, False),
         ]
 
         for label, name, mode, is_default in modes:
