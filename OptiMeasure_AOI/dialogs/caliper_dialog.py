@@ -11,7 +11,7 @@ import numpy as np
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                                 QSpinBox, QComboBox, QDoubleSpinBox,
                                 QDialogButtonBox, QGroupBox)
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, Qt
 
 from utils.image_utils import caliper_find_circle
 
@@ -28,6 +28,9 @@ class CaliperCircleDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("卡尺抓圓")
         self.setMinimumWidth(290)
+        self.setWindowFlags(
+            self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint
+        )
 
         self._image = image
         self._approx_cx = cx
@@ -139,8 +142,9 @@ class CaliperCircleDialog(QDialog):
                 f"半徑: {result['radius']:.1f}"
             )
 
-        self.detection_updated.emit(
-            result['cx'], result['cy'], result['radius'])
+        if result['success']:
+            self.detection_updated.emit(
+                result['cx'], result['cy'], result['radius'])
 
     # ──────────────────────────────────────────────
     # 確認
