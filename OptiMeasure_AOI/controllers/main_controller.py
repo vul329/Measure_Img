@@ -93,6 +93,9 @@ class MainController(QObject):
         right_panel.gen_rect2_requested.connect(self._gen_rect2)
         right_panel.gen_line_requested.connect(self._gen_line)
 
+        # 啟動時將讀取到的顏色同步給 ImageView
+        image_view.set_draw_color(toolbar.current_color)
+
     # ──────────────────────────────────────────────
     # 影像載入
     # ──────────────────────────────────────────────
