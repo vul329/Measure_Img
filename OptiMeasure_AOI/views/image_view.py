@@ -26,6 +26,7 @@ class ViewMode(Enum):
     DRAW_RECT1 = auto()   # 繪製正交矩形
     DRAW_RECT2 = auto()   # 繪製旋轉矩形
     DRAW_LINE = auto()    # 繪製直線
+    CALIPER_CIRCLE = auto()  # 卡尺抓圓
 
 
 class ImageView(QGraphicsView):
@@ -225,7 +226,8 @@ class ImageView(QGraphicsView):
                 self.pixel_clicked.emit(px, py)
 
             elif self._mode in (ViewMode.DRAW_CIRCLE, ViewMode.DRAW_RECT1,
-                                 ViewMode.DRAW_RECT2, ViewMode.DRAW_LINE):
+                                 ViewMode.DRAW_RECT2, ViewMode.DRAW_LINE,
+                                 ViewMode.CALIPER_CIRCLE):
                 # 影像外不允許開始繪圖（方案 B）
                 if not self._is_inside_image(scene_pos):
                     return
@@ -313,6 +315,9 @@ class ImageView(QGraphicsView):
         elif self._mode == ViewMode.DRAW_LINE:
             self._preview_item = self._scene.addLine(
                 start.x(), start.y(), start.x(), start.y(), pen)
+        elif self._mode == ViewMode.CALIPER_CIRCLE:
+            self._preview_item = self._scene.addEllipse(
+                QRectF(start.x(), start.y(), 0, 0), pen)
 
     def _update_preview_item(self, start: QPointF, current: QPointF):
         """更新預覽物件的外觀（隨滑鼠移動即時更新）"""
@@ -321,6 +326,13 @@ class ImageView(QGraphicsView):
 
         if self._mode == ViewMode.DRAW_CIRCLE:
             # 圓形：以起點為圓心，距離為半徑
+            radius = math.sqrt((current.x() - start.x()) ** 2 +
+                               (current.y() - start.y()) ** 2)
+            self._preview_item.setRect(
+                QRectF(start.x() - radius, start.y() - radius,
+                       2 * radius, 2 * radius))
+
+        elif self._mode == ViewMode.CALIPER_CIRCLE:
             radius = math.sqrt((current.x() - start.x()) ** 2 +
                                (current.y() - start.y()) ** 2)
             self._preview_item.setRect(
@@ -406,6 +418,12 @@ class ImageView(QGraphicsView):
             params = {'x1': start.x(), 'y1': start.y(),
                       'x2': end.x(), 'y2': end.y()}
             self.shape_drawn.emit('line', params)
+
+        elif self._mode == ViewMode.CALIPER_CIRCLE:
+            radius = math.sqrt((end.x() - start.x()) ** 2 +
+                               (end.y() - start.y()) ** 2)
+            params = {'cx': start.x(), 'cy': start.y(), 'radius': radius}
+            self.shape_drawn.emit('caliper_circle', params)
 
     # ──────────────────────────────────────────────
     # 存取 Scene（供 Controller 加入圖形物件）
