@@ -23,6 +23,8 @@ class CaliperCircleDialog(QDialog):
     detection_failed = Signal()
     # 使用者按確認後發射
     detection_accepted = Signal(float, float, float)  # cx, cy, r
+    # 參數改變時發射（可視化用）：n_rays, band_ratio
+    params_updated = Signal(int, float)
 
     def __init__(self, image: np.ndarray,
                  cx: float, cy: float, radius: float,
@@ -121,6 +123,11 @@ class CaliperCircleDialog(QDialog):
     _EDGE_MAP = {0: 'any', 1: 'dark_to_light', 2: 'light_to_dark'}
 
     def _run_detection(self):
+        # 先發射可視化參數，讓 Controller 即時更新搜尋帶與射線
+        self.params_updated.emit(
+            self._rays_spin.value(),
+            self._band_spin.value() / 100.0,
+        )
         result = caliper_find_circle(
             self._image,
             self._approx_cx, self._approx_cy, self._approx_radius,

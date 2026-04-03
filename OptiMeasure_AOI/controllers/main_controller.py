@@ -37,7 +37,9 @@ class MainController(QObject):
         self._enhancement_dialog = None
         self._magnifier_dialog = None
         self._caliper_dialog = None
-        self._caliper_preview_item = None  # QGraphicsEllipseItem（預覽用）
+        self._caliper_preview_item = None  # QGraphicsEllipseItem（擬合圓預覽）
+        self._caliper_approx = None        # (cx, cy, radius) 近似圓
+        self._caliper_viz_items = []       # 搜尋帶 + 射線可視化 items
 
         # ── 連接所有信號 ──
         self._connect_signals()
@@ -267,7 +269,8 @@ class MainController(QObject):
         """開啟卡尺抓圓對話框，連接即時預覽與確認信號"""
         if self._image_model.original_image is None:
             return
-        self._remove_caliper_preview()
+        self._clear_all_caliper_overlays()
+        self._caliper_approx = (cx, cy, radius)
         from dialogs.caliper_dialog import CaliperCircleDialog
         self._caliper_dialog = CaliperCircleDialog(
             self._image_model.original_image, cx, cy, radius, self._window)
@@ -275,6 +278,7 @@ class MainController(QObject):
         self._caliper_dialog.detection_accepted.connect(self._on_caliper_accepted)
         self._caliper_dialog.rejected.connect(self._on_caliper_rejected)
         self._caliper_dialog.detection_failed.connect(self._remove_caliper_preview)
+        self._caliper_dialog.params_updated.connect(self._on_caliper_params_updated)
         self._caliper_dialog.exec()
 
     def _on_caliper_updated(self, cx: float, cy: float, r: float):
@@ -293,22 +297,67 @@ class MainController(QObject):
         self._caliper_preview_item = scene.addEllipse(
             QRectF(cx - r, cy - r, 2.0 * r, 2.0 * r), pen)
 
+    def _on_caliper_params_updated(self, n_rays: int, band_ratio: float):
+        """參數改變 → 重繪搜尋帶（內外圈）與射線可視化"""
+        import math
+        from PySide6.QtCore import Qt, QRectF
+        from PySide6.QtGui import QPen
+        self._clear_caliper_viz()
+        if self._caliper_approx is None:
+            return
+        cx, cy, radius = self._caliper_approx
+        r_min = max(0.0, radius * (1.0 - band_ratio))
+        r_max = radius * (1.0 + band_ratio)
+        scene = self._window.image_view.graphics_scene
+        color = self._window.image_view._draw_color
+        # 細點線筆，Cosmetic 確保縮放時線寬一致
+        pen = QPen(color, 1)
+        pen.setStyle(Qt.PenStyle.DotLine)
+        pen.setCosmetic(True)
+        # 內圈（搜尋帶下界）
+        self._caliper_viz_items.append(
+            scene.addEllipse(QRectF(cx - r_min, cy - r_min, 2*r_min, 2*r_min), pen))
+        # 外圈（搜尋帶上界）
+        self._caliper_viz_items.append(
+            scene.addEllipse(QRectF(cx - r_max, cy - r_max, 2*r_max, 2*r_max), pen))
+        # 射線（只畫搜尋帶範圍：r_min → r_max）
+        for i in range(n_rays):
+            angle = 2.0 * math.pi * i / n_rays
+            cos_a, sin_a = math.cos(angle), math.sin(angle)
+            self._caliper_viz_items.append(scene.addLine(
+                cx + r_min * cos_a, cy + r_min * sin_a,
+                cx + r_max * cos_a, cy + r_max * sin_a, pen))
+
     def _on_caliper_accepted(self, cx: float, cy: float, r: float):
-        """使用者按確認 → 移除預覽 → 建立正式 CircleItem"""
-        self._remove_caliper_preview()
+        """使用者按確認 → 清除所有疊加層 → 建立正式 CircleItem"""
+        self._clear_all_caliper_overlays()
         color = self._window.image_view._draw_color
         lw = self._window.image_view._draw_line_width
         self._create_circle(cx, cy, r, color, lw)
 
     def _on_caliper_rejected(self):
-        """使用者取消 → 移除預覽"""
-        self._remove_caliper_preview()
+        """使用者取消 → 清除所有疊加層"""
+        self._clear_all_caliper_overlays()
 
     def _remove_caliper_preview(self):
+        """只移除擬合圓預覽（可視化保留）"""
         if self._caliper_preview_item is not None:
             self._window.image_view.graphics_scene.removeItem(
                 self._caliper_preview_item)
             self._caliper_preview_item = None
+
+    def _clear_caliper_viz(self):
+        """清除搜尋帶與射線可視化"""
+        scene = self._window.image_view.graphics_scene
+        for item in self._caliper_viz_items:
+            if item.scene() == scene:
+                scene.removeItem(item)
+        self._caliper_viz_items.clear()
+
+    def _clear_all_caliper_overlays(self):
+        """清除擬合圓預覽 + 可視化（關閉 dialog 或重新開啟時呼叫）"""
+        self._remove_caliper_preview()
+        self._clear_caliper_viz()
 
     def _on_pixel_hovered_for_magnifier(self, px: int, py: int):
         """滑鼠移動 → 更新放大鏡（跟隨模式）"""
