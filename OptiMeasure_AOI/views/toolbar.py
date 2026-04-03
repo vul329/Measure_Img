@@ -11,7 +11,7 @@ toolbar.py
 """
 from PySide6.QtWidgets import (QToolBar, QLabel, QSpinBox, QWidget,
                                 QHBoxLayout, QColorDialog)
-from PySide6.QtCore import Signal, Qt
+from PySide6.QtCore import Signal, Qt, QSettings
 from PySide6.QtGui import (QColor, QIcon, QPixmap, QPainter,
                             QActionGroup, QAction)
 
@@ -31,6 +31,12 @@ class ToolBar(QToolBar):
         self.setMovable(False)
 
         self._current_color = QColor(0, 255, 0)
+
+        # 從 QSettings 恢復上次顏色
+        _settings = QSettings("OptiMeasure", "AOI")
+        _saved = _settings.value("toolbar/color")
+        if _saved:
+            self._current_color = QColor(_saved)
 
         self._build_mode_buttons()
         self.addSeparator()
@@ -100,6 +106,7 @@ class ToolBar(QToolBar):
         color = QColorDialog.getColor(self._current_color, self, "選擇線條顏色")
         if color.isValid():
             self._current_color = color
+            QSettings("OptiMeasure", "AOI").setValue("toolbar/color", color.name())
             self._update_color_icon()
             self.color_changed.emit(color)
 
@@ -121,3 +128,7 @@ class ToolBar(QToolBar):
         magnifier_action = QAction("放大鏡", self)
         magnifier_action.triggered.connect(self.magnifier_clicked)
         self.addAction(magnifier_action)
+
+    @property
+    def current_color(self) -> QColor:
+        return self._current_color
