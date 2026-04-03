@@ -123,8 +123,13 @@ def caliper_find_circle(
 
     h, w = gray.shape
     r_min = radius * (1.0 - band_ratio)
+    r_min = max(0.0, r_min)
     r_max = radius * (1.0 + band_ratio)
     n_samples = max(20, int((r_max - r_min) * 2) + 10)
+
+    _VALID_EDGE_DIRS = ('any', 'dark_to_light', 'light_to_dark')
+    if edge_dir not in _VALID_EDGE_DIRS:
+        raise ValueError(f"edge_dir must be one of {_VALID_EDGE_DIRS}, got {edge_dir!r}")
 
     angles = np.linspace(0.0, 2.0 * np.pi, n_rays, endpoint=False)
     edge_pts: list[tuple[float, float]] = []
@@ -137,6 +142,9 @@ def caliper_find_circle(
         ys = np.clip(cy + distances * sin_a, 0, h - 1).astype(int)
         profile = gray[ys, xs]
         gradient = np.gradient(profile)
+
+        if np.max(np.abs(gradient)) == 0.0:
+            continue  # 無梯度（均勻區域），跳過此射線
 
         if edge_dir == 'dark_to_light':
             idx = int(np.argmax(gradient))

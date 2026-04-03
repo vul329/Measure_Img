@@ -64,3 +64,13 @@ def test_inliers_count():
     img = _circle_image()
     result = caliper_find_circle(img, 150.0, 150.0, 80.0)
     assert result['inliers'] <= result['total']
+
+
+def test_failure_on_blank_image():
+    """全黑影像（無邊緣）應回傳 success=False，cx/cy/radius 退回近似值"""
+    img = np.zeros((300, 300), dtype=np.uint8)
+    result = caliper_find_circle(img, 150.0, 150.0, 80.0)
+    assert result['success'] is False
+    assert result['cx'] == 150.0
+    assert result['cy'] == 150.0
+    assert result['radius'] == 80.0
