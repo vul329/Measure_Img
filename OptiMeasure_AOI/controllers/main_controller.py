@@ -282,6 +282,11 @@ class MainController(QObject):
         self._caliper_dialog.rejected.connect(self._on_caliper_rejected)
         self._caliper_dialog.detection_failed.connect(self._remove_caliper_preview)
         self._caliper_dialog.params_updated.connect(self._on_caliper_params_updated)
+        # dialog 建構時 params_updated 已發射但尚未連接，補觸發一次以顯示初始可視化
+        self._on_caliper_params_updated(
+            self._caliper_dialog._rays_spin.value(),
+            self._caliper_dialog._band_spin.value() / 100.0,
+        )
         self._caliper_dialog.exec()
 
     def _on_caliper_updated(self, cx: float, cy: float, r: float):
