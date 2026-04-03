@@ -21,7 +21,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Measure_Img")
         self.setMinimumSize(1024, 680)
-        self.resize(1400, 900)
+        self.resize(1200, 780)
 
         # ── 建立元件 ──
         self.toolbar = ToolBar(self)

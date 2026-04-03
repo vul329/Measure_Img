@@ -140,6 +140,10 @@ class ToolBar(QToolBar):
         self._update_bg_icon()
         self._bg_action.triggered.connect(self._on_toggle_bg)
         self.addAction(self._bg_action)
+        # 讓「背景」按鈕同時顯示圖示與文字
+        btn = self.widgetForAction(self._bg_action)
+        if btn:
+            btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
 
     def _on_toggle_bg(self):
         self._bg_is_dark = not self._bg_is_dark
