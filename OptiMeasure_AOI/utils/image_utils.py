@@ -88,6 +88,118 @@ def crop_roi(image: np.ndarray, center_x: int, center_y: int, half_size: int) ->
     return roi
 
 
+def caliper_find_circle(
+    image: np.ndarray,
+    cx: float,
+    cy: float,
+    radius: float,
+    n_rays: int = 36,
+    band_ratio: float = 0.20,
+    edge_dir: str = 'any',
+    ransac_tol: float = 2.0,
+) -> dict:
+    """
+    射線卡尺偵測圓形邊緣，最小二乘法 + RANSAC 擬合圓。
+
+    Parameters
+    ----------
+    image      : 灰階或 BGR 彩色 numpy array
+    cx, cy     : 近似圓心（像素座標）
+    radius     : 近似半徑
+    n_rays     : 射線數（預設 36）
+    band_ratio : 搜尋帶半寬比例（預設 ±20%）
+    edge_dir   : 'any' | 'dark_to_light' | 'light_to_dark'
+    ransac_tol : RANSAC inlier 距離容忍（像素）
+
+    Returns
+    -------
+    dict with keys: cx, cy, radius, inliers, total, success
+    """
+    # 轉灰階
+    if image.ndim == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    else:
+        gray = image.astype(np.float32)
+
+    h, w = gray.shape
+    r_min = radius * (1.0 - band_ratio)
+    r_max = radius * (1.0 + band_ratio)
+    n_samples = max(20, int((r_max - r_min) * 2) + 10)
+
+    angles = np.linspace(0.0, 2.0 * np.pi, n_rays, endpoint=False)
+    edge_pts: list[tuple[float, float]] = []
+
+    for angle in angles:
+        cos_a = np.cos(angle)
+        sin_a = np.sin(angle)
+        distances = np.linspace(r_min, r_max, n_samples)
+        xs = np.clip(cx + distances * cos_a, 0, w - 1).astype(int)
+        ys = np.clip(cy + distances * sin_a, 0, h - 1).astype(int)
+        profile = gray[ys, xs]
+        gradient = np.gradient(profile)
+
+        if edge_dir == 'dark_to_light':
+            idx = int(np.argmax(gradient))
+        elif edge_dir == 'light_to_dark':
+            idx = int(np.argmin(gradient))
+        else:
+            idx = int(np.argmax(np.abs(gradient)))
+
+        edge_pts.append((cx + distances[idx] * cos_a,
+                         cy + distances[idx] * sin_a))
+
+    _FAIL = {'cx': cx, 'cy': cy, 'radius': radius,
+             'inliers': 0, 'total': n_rays, 'success': False}
+
+    if len(edge_pts) < 3:
+        return _FAIL
+
+    pts = np.array(edge_pts, dtype=np.float64)
+
+    def _fit_circle(p: np.ndarray):
+        """代數最小二乘法：(x-cx)²+(y-cy)²=r²"""
+        x, y = p[:, 0], p[:, 1]
+        A = np.column_stack([x, y, np.ones(len(x))])
+        b_vec = -(x ** 2 + y ** 2)
+        coef, _, _, _ = np.linalg.lstsq(A, b_vec, rcond=None)
+        a, b, c = coef
+        fit_cx, fit_cy = -a / 2.0, -b / 2.0
+        val = fit_cx ** 2 + fit_cy ** 2 - c
+        if val <= 0:
+            return None
+        return fit_cx, fit_cy, float(np.sqrt(val))
+
+    # RANSAC
+    rng = np.random.default_rng(42)
+    best_mask = np.zeros(len(pts), dtype=bool)
+
+    for _ in range(50):
+        idx3 = rng.choice(len(pts), 3, replace=False)
+        res = _fit_circle(pts[idx3])
+        if res is None:
+            continue
+        fcx, fcy, fr = res
+        dist = np.abs(np.sqrt((pts[:, 0] - fcx) ** 2 +
+                               (pts[:, 1] - fcy) ** 2) - fr)
+        mask = dist <= ransac_tol
+        if mask.sum() > best_mask.sum():
+            best_mask = mask
+
+    if best_mask.sum() < 3:
+        return _FAIL
+
+    final = _fit_circle(pts[best_mask])
+    if final is None:
+        return _FAIL
+
+    fcx, fcy, fr = final
+    return {
+        'cx': float(fcx), 'cy': float(fcy), 'radius': float(fr),
+        'inliers': int(best_mask.sum()), 'total': n_rays,
+        'success': True,
+    }
+
+
 def numpy_to_qimage(image: np.ndarray):
     """
     將 numpy array（OpenCV 格式）轉換為 QImage，供 PySide6 顯示。
