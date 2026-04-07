@@ -1,42 +1,70 @@
-# Todo
+# 實作進度
 
-## 待實作功能
+## 分支
+`feature/scale-threshold`
+Worktree: `.worktrees/feature-scale-threshold`
 
-### 卡尺抓圓（Caliper Circle Detection）
+## 計畫文件
+- Spec: `docs/superpowers/specs/2026-04-07-scale-and-threshold-design.md`
+- Plan: `docs/superpowers/plans/2026-04-07-scale-and-threshold.md`
 
-**設計方向：獨立按鈕（方向 B）**
+---
 
-工具列新增「卡尺抓圓」模式。在此模式下拖曳畫出近似圓，自動執行卡尺偵測並以擬合結果產生 CircleItem。
+## 任務清單
 
-#### 演算法流程
-1. 使用者在 `CALIPER_CIRCLE` 模式下拖曳畫出近似圓（中心 + 半徑）
-2. 從中心向外射出 N 條輻射射線（預設 36 條，每 10°）
-3. 沿每條射線在搜尋帶（近似半徑 ±20%）內取樣像素剖面
-4. 對每條剖面計算 1D 梯度，找到梯度最大點作為邊緣位置
-5. 收集 N 個邊緣點，用最小二乘法擬合圓（求 cx, cy, r）
-6. RANSAC 剔除離群點後再擬合，提高準確度
-7. 以擬合結果產生 CircleItem 加入畫布與表格
+- [x] **Task 1: compute_real_length utility function** ✅ DONE (commit: 1c84d44)
+  - 代碼品質問題待修：
+    1. [Important] `test_scale_empty_returns_dashes` 是重複測試，改成 `test_scale_negative_returns_dashes(scale=-1.0)`
+    2. [Important] 函式應放在 `utils/measurement_utils.py`（新檔案），不是 `views/right_panel.py`
+    3. [Suggestion] 補 `test_missing_type_key_returns_dashes` (params={})
+    4. [Suggestion] docstring 補上 negative scale 說明
+  - **→ 下一步：修正上述問題後繼續 Task 2**
 
-#### 可調參數（透過 CaliperCircleDialog）
-| 參數 | 預設值 | 範圍 |
-|------|--------|------|
-| 射線數 | 36 | 12 ~ 72 |
-| 搜尋帶寬 | ±20% | ±5% ~ ±50% |
-| 梯度方向 | 不限 | 暗→亮 / 亮→暗 / 不限 |
-| RANSAC 容忍誤差 | 2 px | 1 ~ 5 px |
+- [ ] **Task 2: Toolbar — scale field**
+  - 修改 `OptiMeasure_AOI/views/toolbar.py`
+  - 新增 `scale_changed = Signal(float)`, `QDoubleValidator`, scale QLineEdit, QSettings 持久化
 
-#### 需新增 / 修改的檔案
-```
-新增：
-  utils/image_utils.py          → caliper_find_circle(image, cx, cy, radius, ...) 函式
-  dialogs/caliper_dialog.py     → 參數設定面板 + 偵測結果顯示
+- [ ] **Task 3: RightPanel — 8th column + scale wiring**
+  - 修改 `OptiMeasure_AOI/views/right_panel.py`
+  - 表格欄數 7→8，新增「實際長度」欄
+  - 新增 `set_scale()`, `refresh_real_length_column()`, `_scale` 成員
+  - `_fill_row()` 末尾呼叫 `compute_real_length()`
 
-修改：
-  views/image_view.py           → 新增 ViewMode.CALIPER_CIRCLE
-  views/toolbar.py              → 新增「卡尺抓圓」按鈕
-  controllers/main_controller.py → 連接卡尺偵測流程與 CircleItem 建立
-```
+- [ ] **Task 4: Controller — wire scale**
+  - 修改 `OptiMeasure_AOI/controllers/main_controller.py`
+  - `toolbar.scale_changed → right_panel.set_scale`
+  - `_connect_signals` 末尾加 `right_panel.set_scale(toolbar.scale)`
 
-#### 效能預估
-- 36 條射線 × 100 取樣點，純 numpy 實作
-- 10MP 影像執行時間 < 10ms
+- [ ] **Task 5: apply_threshold_overlay utility + test**
+  - 修改 `OptiMeasure_AOI/utils/image_utils.py`，新增 `apply_threshold_overlay(gray, low, high, overlay_bgr)`
+  - 新增 `tests/test_threshold_overlay.py`
+
+- [ ] **Task 6: ImageModel — threshold state**
+  - 修改 `OptiMeasure_AOI/models/image_model.py`
+  - 新增 `_threshold_enabled`, `_threshold_low`, `_threshold_high`, `_overlay_bgr`
+  - 新增 `set_threshold()`, `set_overlay_color()`, `get_visible_image()`
+  - import `apply_threshold_overlay`
+
+- [ ] **Task 7: Controller — use get_visible_image()**
+  - `_on_image_loaded` 和 `_on_display_image_updated` 改呼叫 `get_visible_image()`
+  - `_on_color_changed` 同步呼叫 `image_model.set_overlay_color(color)`
+  - `_connect_signals` 末尾加 `image_model.set_overlay_color(toolbar.current_color)`
+
+- [ ] **Task 8: ThresholdDialog**
+  - 新建 `OptiMeasure_AOI/dialogs/threshold_dialog.py`
+  - `HistogramWidget(QWidget)` + `ThresholdDialog(QDialog)`
+  - 非模態、`WA_DeleteOnClose=False`
+  - `threshold_changed = Signal(int, int, bool)`
+
+- [ ] **Task 9: Toolbar threshold button + Controller wiring**
+  - Toolbar 新增 `threshold_clicked = Signal()` + 「閥值」QAction
+  - Controller 新增 `_threshold_dialog`, `_on_threshold_clicked`, `_on_threshold_changed`
+  - 載入新圖時 reset threshold
+  - 增強 apply 時更新 histogram
+
+---
+
+## 注意事項
+
+- compute_real_length 最終應從 `utils/measurement_utils.py` import，而非 `views/right_panel.py`
+- Task 2 之前先修 Task 1 的 code review 問題
