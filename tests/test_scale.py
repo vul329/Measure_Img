@@ -1,7 +1,7 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'OptiMeasure_AOI'))
 
-from views.right_panel import compute_real_length
+from utils.measurement_utils import compute_real_length
 
 
 def test_scale_zero_returns_dashes():
@@ -9,9 +9,9 @@ def test_scale_zero_returns_dashes():
     assert compute_real_length(params, 0.0) == '--'
 
 
-def test_scale_empty_returns_dashes():
+def test_scale_negative_returns_dashes():
     params = {'type': 'Circle', 'radius': 50.0}
-    assert compute_real_length(params, 0.0) == '--'
+    assert compute_real_length(params, -1.0) == '--'
 
 
 def test_circle_real_length():
