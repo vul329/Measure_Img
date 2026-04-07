@@ -12,13 +12,11 @@ Worktree: `.worktrees/feature-scale-threshold`
 
 ## 任務清單
 
-- [x] **Task 1: compute_real_length utility function** ✅ DONE (commit: 1c84d44)
-  - 代碼品質問題待修：
-    1. [Important] `test_scale_empty_returns_dashes` 是重複測試，改成 `test_scale_negative_returns_dashes(scale=-1.0)`
-    2. [Important] 函式應放在 `utils/measurement_utils.py`（新檔案），不是 `views/right_panel.py`
-    3. [Suggestion] 補 `test_missing_type_key_returns_dashes` (params={})
-    4. [Suggestion] docstring 補上 negative scale 說明
-  - **→ 下一步：修正上述問題後繼續 Task 2**
+- [x] **Task 1: compute_real_length utility function** ✅ DONE (commit: b861b47)
+  - `utils/measurement_utils.py` 新建，含 `compute_real_length()`
+  - `right_panel.py` import 自 `utils.measurement_utils`
+  - `tests/test_scale.py` 修正（negative scale 測試補上）
+  - **→ 下一步：Task 2**
 
 - [ ] **Task 2: Toolbar — scale field**
   - 修改 `OptiMeasure_AOI/views/toolbar.py`
