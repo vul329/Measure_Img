@@ -107,12 +107,8 @@ class ToolBar(QToolBar):
         layout.addWidget(self._line_width_spin)
         self.addWidget(container)
 
-        # 倍率輸入
-        scale_container = QWidget()
-        scale_layout = QHBoxLayout(scale_container)
-        scale_layout.setContentsMargins(4, 0, 4, 0)
-        scale_layout.setSpacing(4)
-        scale_layout.addWidget(QLabel("倍率"))
+        # 倍率輸入（直接加入 toolbar，避免容器被拉伸導致 Label 與 Edit 分離）
+        self.addWidget(QLabel("倍率"))
         self._scale_edit = QLineEdit()
         self._scale_edit.setPlaceholderText("1.000")
         self._scale_edit.setFixedWidth(70)
@@ -122,8 +118,7 @@ class ToolBar(QToolBar):
         if _saved_scale:
             self._scale_edit.setText(str(_saved_scale))
         self._scale_edit.textChanged.connect(self._on_scale_changed)
-        scale_layout.addWidget(self._scale_edit)
-        self.addWidget(scale_container)
+        self.addWidget(self._scale_edit)
 
     def _on_pick_color(self):
         """開啟顏色選擇對話框"""
