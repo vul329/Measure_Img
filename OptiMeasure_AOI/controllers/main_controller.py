@@ -40,6 +40,7 @@ class MainController(QObject):
         self._caliper_preview_item = None  # QGraphicsEllipseItem（擬合圓預覽）
         self._caliper_approx = None        # (cx, cy, radius) 近似圓
         self._caliper_viz_items = []       # 搜尋帶 + 射線可視化 items
+        self._threshold_dialog = None
 
         # ── 連接所有信號 ──
         self._connect_signals()
@@ -65,6 +66,7 @@ class MainController(QObject):
         toolbar.magnifier_clicked.connect(self._open_magnifier_dialog)
         toolbar.bg_color_changed.connect(image_view.set_background_color)
         toolbar.scale_changed.connect(right_panel.set_scale)
+        toolbar.threshold_clicked.connect(self._on_threshold_clicked)
 
         # ImageView → 影像載入
         image_view.image_dropped.connect(self._on_image_dropped)
@@ -127,6 +129,11 @@ class MainController(QObject):
         # 若放大鏡已開啟，更新來源影像
         if self._magnifier_dialog:
             self._magnifier_dialog.set_source_image(self._image_model.original_image)
+        # Reset threshold on new image load
+        self._image_model.set_threshold(0, 255, False)
+        if self._threshold_dialog is not None:
+            self._threshold_dialog.reset()
+            self._threshold_dialog.set_image(self._image_model.display_image)
 
     def _on_display_image_updated(self):
         """display_image 更新（增強效果改變或閥值改變）→ 重繪畫布"""
@@ -399,6 +406,21 @@ class MainController(QObject):
         self._enhancement_dialog.show()
         self._enhancement_dialog.raise_()
 
+    def _on_threshold_clicked(self):
+        from dialogs.threshold_dialog import ThresholdDialog
+        if self._threshold_dialog is None:
+            self._threshold_dialog = ThresholdDialog(self._window)
+            self._threshold_dialog.threshold_changed.connect(
+                self._on_threshold_changed)
+        if self._image_model.is_loaded:
+            self._threshold_dialog.set_image(self._image_model.display_image)
+        self._threshold_dialog.show()
+        self._threshold_dialog.raise_()
+        self._threshold_dialog.activateWindow()
+
+    def _on_threshold_changed(self, low: int, high: int, enabled: bool):
+        self._image_model.set_threshold(low, high, enabled)
+
     def _on_enhancement_params_changed(self, gamma: float, gain: float, offset: float):
         """增強 Dialog 參數改變 → 套用增強 → 更新 display_image"""
         if not self._image_model.is_loaded:
@@ -406,3 +428,6 @@ class MainController(QObject):
         enhanced = apply_enhancements(
             self._image_model.original_image, gamma, gain, offset)
         self._image_model.update_display_image(enhanced)
+        # Update threshold dialog histogram when enhancement changes
+        if self._threshold_dialog is not None:
+            self._threshold_dialog.set_image(self._image_model.display_image)

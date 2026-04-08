@@ -27,6 +27,7 @@ class ToolBar(QToolBar):
     magnifier_clicked = Signal()
     bg_color_changed = Signal(QColor)
     scale_changed = Signal(float)
+    threshold_clicked = Signal()
 
     def __init__(self, parent=None):
         super().__init__("工具列", parent)
@@ -171,6 +172,12 @@ class ToolBar(QToolBar):
         btn = self.widgetForAction(self._bg_action)
         if btn:
             btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+
+        self.addSeparator()
+
+        threshold_action = QAction("閥值", self)
+        threshold_action.triggered.connect(self.threshold_clicked)
+        self.addAction(threshold_action)
 
     def _on_toggle_bg(self):
         self._bg_is_dark = not self._bg_is_dark
