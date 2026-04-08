@@ -127,7 +127,7 @@ class ToolBar(QToolBar):
         color = QColorDialog.getColor(self._current_color, self, "選擇線條顏色")
         if color.isValid():
             self._current_color = color
-            QSettings("OptiMeasure", "AOI").setValue("toolbar/color", color.name())
+            self._settings.setValue("toolbar/color", color.name())
             self._update_color_icon()
             self.color_changed.emit(color)
 
@@ -136,7 +136,7 @@ class ToolBar(QToolBar):
             value = float(text)
         except ValueError:
             value = 0.0
-        QSettings("OptiMeasure", "AOI").setValue("toolbar/scale", text)
+        self._settings.setValue("toolbar/scale", text)
         self.scale_changed.emit(value)
 
     def _update_color_icon(self):
