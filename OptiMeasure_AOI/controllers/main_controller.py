@@ -125,15 +125,15 @@ class MainController(QObject):
 
     def _on_image_loaded(self, width: int, height: int):
         """ImageModel 載入成功 → 更新畫布顯示"""
-        self._window.image_view.set_image(self._image_model.get_visible_image())
+        # 先重設閥值狀態，再透過 display_image_updated 信號觸發畫布重繪
+        # 避免舊閥值疊加在新影像上產生畫面閃爍
+        self._image_model.set_threshold(0, 255, False)
+        if self._threshold_dialog is not None:
+            self._threshold_dialog.set_image(self._image_model.display_image)
+            self._threshold_dialog.reset()
         # 若放大鏡已開啟，更新來源影像
         if self._magnifier_dialog:
             self._magnifier_dialog.set_source_image(self._image_model.original_image)
-        # Reset threshold on new image load
-        self._image_model.set_threshold(0, 255, False)
-        if self._threshold_dialog is not None:
-            self._threshold_dialog.reset()
-            self._threshold_dialog.set_image(self._image_model.display_image)
 
     def _on_display_image_updated(self):
         """display_image 更新（增強效果改變或閥值改變）→ 重繪畫布"""

@@ -6,8 +6,10 @@ toolbar.py
 - 模式切換按鈕群組（互斥）
 - 線條顏色選擇
 - 線寬選擇（SpinBox 1~5）
+- 倍率輸入欄位
 - 影像增強按鈕
 - 放大鏡按鈕
+- 閥值按鈕
 """
 from PySide6.QtWidgets import (QToolBar, QLabel, QSpinBox, QWidget,
                                 QHBoxLayout, QColorDialog, QLineEdit)
