@@ -12,6 +12,8 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QDoubleValidator
 
+from utils.measurement_utils import compute_real_length
+
 
 class RightPanel(QWidget):
     # ── 信號 ──
@@ -43,6 +45,8 @@ class RightPanel(QWidget):
 
         # 內部映射：row index → shape_id
         self._row_to_id: dict[int, int] = {}
+        # 縮放係數（用於計算實際長度）
+        self._scale: float = 0.0
 
     # ──────────────────────────────────────────────
     # 參數輸入區
@@ -204,9 +208,9 @@ class RightPanel(QWidget):
 
         # 建立表格
         self._table = QTableWidget()
-        self._table.setColumnCount(7)
+        self._table.setColumnCount(8)
         self._table.setHorizontalHeaderLabels(
-            ["ID", "類型", "參數1", "參數2", "參數3", "參數4", "參數5"])
+            ["ID", "類型", "參數1", "參數2", "參數3", "參數4", "參數5", "實際長度"])
         # 各欄依內容自動調整寬度，超出時出現水平捲軸
         header = self._table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)  # ID
@@ -214,6 +218,8 @@ class RightPanel(QWidget):
         for col in range(2, 7):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.Interactive)
             self._table.setColumnWidth(col, 90)
+        header.setSectionResizeMode(7, QHeaderView.ResizeMode.Interactive)
+        self._table.setColumnWidth(7, 100)
         self._table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self._table.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows)
@@ -311,6 +317,9 @@ class RightPanel(QWidget):
             self._set_cell(row, 5, f"y2={params.get('y2', '')}")
             self._set_cell(row, 6, f"len={params.get('length', '')}")
 
+        # 欄 7：實際長度
+        self._set_cell(row, 7, compute_real_length(params, self._scale))
+
     def _set_cell(self, row: int, col: int, text: str):
         item = QTableWidgetItem(text)
         item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -364,3 +373,33 @@ class RightPanel(QWidget):
         """刪除所有圖形：通知 Controller 清除全部"""
         if self._table.rowCount() > 0:
             self.table_all_deleted.emit()
+
+    def set_scale(self, value: float):
+        """設定縮放係數並刷新實際長度欄位"""
+        self._scale = value
+        self.refresh_real_length_column()
+
+    def refresh_real_length_column(self):
+        """根據目前的縮放係數刷新表格中的實際長度欄位"""
+        for row in range(self._table.rowCount()):
+            type_item = self._table.item(row, 1)
+            if type_item is None:
+                continue
+            shape_type = type_item.text()
+            # 從表格顯示的單元格重建最小 params 字典
+            params = {'type': shape_type}
+            if shape_type == 'Circle':
+                r_item = self._table.item(row, 4)
+                if r_item:
+                    try:
+                        params['radius'] = float(r_item.text().replace('r=', ''))
+                    except ValueError:
+                        pass
+            elif shape_type == 'Line':
+                len_item = self._table.item(row, 6)
+                if len_item:
+                    try:
+                        params['length'] = float(len_item.text().replace('len=', ''))
+                    except ValueError:
+                        pass
+            self._set_cell(row, 7, compute_real_length(params, self._scale))

@@ -40,6 +40,7 @@ class MainController(QObject):
         self._caliper_preview_item = None  # QGraphicsEllipseItem（擬合圓預覽）
         self._caliper_approx = None        # (cx, cy, radius) 近似圓
         self._caliper_viz_items = []       # 搜尋帶 + 射線可視化 items
+        self._threshold_dialog = None
 
         # ── 連接所有信號 ──
         self._connect_signals()
@@ -64,6 +65,8 @@ class MainController(QObject):
         toolbar.enhancement_clicked.connect(self._open_enhancement_dialog)
         toolbar.magnifier_clicked.connect(self._open_magnifier_dialog)
         toolbar.bg_color_changed.connect(image_view.set_background_color)
+        toolbar.scale_changed.connect(right_panel.set_scale)
+        toolbar.threshold_clicked.connect(self._on_threshold_clicked)
 
         # ImageView → 影像載入
         image_view.image_dropped.connect(self._on_image_dropped)
@@ -102,6 +105,10 @@ class MainController(QObject):
         image_view.set_draw_color(toolbar.current_color)
         # 啟動時套用預設背景色（黑色）
         image_view.set_background_color(QColor(0, 0, 0))
+        # Sync initial scale value from toolbar (restored from QSettings)
+        right_panel.set_scale(toolbar.scale)
+        # Sync initial overlay color for threshold
+        self._image_model.set_overlay_color(toolbar.current_color)
 
     # ──────────────────────────────────────────────
     # 影像載入
@@ -118,14 +125,19 @@ class MainController(QObject):
 
     def _on_image_loaded(self, width: int, height: int):
         """ImageModel 載入成功 → 更新畫布顯示"""
-        self._window.image_view.set_image(self._image_model.display_image)
+        # 先重設閥值狀態，再透過 display_image_updated 信號觸發畫布重繪
+        # 避免舊閥值疊加在新影像上產生畫面閃爍
+        self._image_model.set_threshold(0, 255, False)
+        if self._threshold_dialog is not None:
+            self._threshold_dialog.set_image(self._image_model.display_image)
+            self._threshold_dialog.reset()
         # 若放大鏡已開啟，更新來源影像
         if self._magnifier_dialog:
             self._magnifier_dialog.set_source_image(self._image_model.original_image)
 
     def _on_display_image_updated(self):
-        """display_image 更新（增強效果改變）→ 重繪畫布"""
-        self._window.image_view.set_image(self._image_model.display_image)
+        """display_image 更新（增強效果改變或閥值改變）→ 重繪畫布"""
+        self._window.image_view.set_image(self._image_model.get_visible_image())
 
     # ──────────────────────────────────────────────
     # StatusBar 像素資訊
@@ -142,6 +154,7 @@ class MainController(QObject):
 
     def _on_color_changed(self, color: QColor):
         self._window.image_view.set_draw_color(color)
+        self._image_model.set_overlay_color(color)
 
     def _on_line_width_changed(self, width: int):
         self._window.image_view.set_draw_line_width(width)
@@ -393,6 +406,21 @@ class MainController(QObject):
         self._enhancement_dialog.show()
         self._enhancement_dialog.raise_()
 
+    def _on_threshold_clicked(self):
+        from dialogs.threshold_dialog import ThresholdDialog
+        if self._threshold_dialog is None:
+            self._threshold_dialog = ThresholdDialog(self._window)
+            self._threshold_dialog.threshold_changed.connect(
+                self._on_threshold_changed)
+        if self._image_model.is_loaded:
+            self._threshold_dialog.set_image(self._image_model.display_image)
+        self._threshold_dialog.show()
+        self._threshold_dialog.raise_()
+        self._threshold_dialog.activateWindow()
+
+    def _on_threshold_changed(self, low: int, high: int, enabled: bool):
+        self._image_model.set_threshold(low, high, enabled)
+
     def _on_enhancement_params_changed(self, gamma: float, gain: float, offset: float):
         """增強 Dialog 參數改變 → 套用增強 → 更新 display_image"""
         if not self._image_model.is_loaded:
@@ -400,3 +428,6 @@ class MainController(QObject):
         enhanced = apply_enhancements(
             self._image_model.original_image, gamma, gain, offset)
         self._image_model.update_display_image(enhanced)
+        # Update threshold dialog histogram when enhancement changes
+        if self._threshold_dialog is not None:
+            self._threshold_dialog.set_image(self._image_model.display_image)

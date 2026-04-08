@@ -11,6 +11,7 @@ image_model.py
 import numpy as np
 import cv2
 from PySide6.QtCore import QObject, Signal
+from utils.image_utils import apply_threshold_overlay
 
 
 class ImageModel(QObject):
@@ -23,6 +24,10 @@ class ImageModel(QObject):
         super().__init__(parent)
         self._original_image: np.ndarray | None = None  # 原始影像，永不修改
         self._display_image: np.ndarray | None = None   # 顯示影像，可套用增強
+        self._threshold_enabled: bool = False
+        self._threshold_low: int = 0
+        self._threshold_high: int = 255
+        self._overlay_bgr: tuple = (0, 255, 0)  # default green (B, G, R)
 
     # ──────────────────────────────────────────────
     # 屬性存取
@@ -110,6 +115,43 @@ class ImageModel(QObject):
         if self._original_image is not None:
             self._display_image = self._original_image.copy()
             self.display_image_updated.emit()
+
+    def set_threshold(self, low: int, high: int, enabled: bool):
+        """Update threshold state and notify canvas to redraw."""
+        self._threshold_low = low
+        self._threshold_high = high
+        self._threshold_enabled = enabled
+        self.display_image_updated.emit()
+
+    def set_overlay_color(self, color):
+        """
+        Update the overlay color used for threshold highlighting.
+        color: QColor instance
+        Only triggers redraw if threshold is currently enabled.
+        """
+        from PySide6.QtGui import QColor
+        if isinstance(color, QColor):
+            self._overlay_bgr = (color.blue(), color.green(), color.red())
+        if self._threshold_enabled:
+            self.display_image_updated.emit()
+
+    def get_visible_image(self) -> np.ndarray | None:
+        """
+        Returns the image to display on canvas.
+        - threshold disabled: returns display_image as-is
+        - threshold enabled: returns BGR image with overlay color on [low, high] pixels
+        """
+        if self._display_image is None:
+            return None
+        if not self._threshold_enabled:
+            return self._display_image
+        # Ensure grayscale for masking
+        if self._display_image.ndim == 3:
+            gray = cv2.cvtColor(self._display_image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = self._display_image
+        return apply_threshold_overlay(
+            gray, self._threshold_low, self._threshold_high, self._overlay_bgr)
 
     # ──────────────────────────────────────────────
     # 像素值查詢（永遠從原始影像讀取）

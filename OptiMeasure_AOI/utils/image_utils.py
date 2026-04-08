@@ -47,6 +47,25 @@ def apply_enhancements(image: np.ndarray, gamma: float, gain: float, offset: flo
     return result
 
 
+def apply_threshold_overlay(
+    gray: np.ndarray,
+    low: int,
+    high: int,
+    overlay_bgr: tuple,
+) -> np.ndarray:
+    """
+    Returns a BGR image where pixels in [low, high] are colored with overlay_bgr;
+    pixels outside retain their grayscale value in all three channels.
+
+    gray        : 2D uint8 ndarray (grayscale)
+    overlay_bgr : (B, G, R) tuple of ints 0-255
+    """
+    bgr = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+    mask = (gray >= low) & (gray <= high)
+    bgr[mask] = overlay_bgr
+    return bgr
+
+
 def crop_roi(image: np.ndarray, center_x: int, center_y: int, half_size: int) -> np.ndarray:
     """
     從原始影像中擷取以 (center_x, center_y) 為中心，邊長 = half_size*2+1 的 ROI。

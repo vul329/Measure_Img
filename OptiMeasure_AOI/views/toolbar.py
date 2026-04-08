@@ -6,14 +6,16 @@ toolbar.py
 - 模式切換按鈕群組（互斥）
 - 線條顏色選擇
 - 線寬選擇（SpinBox 1~5）
+- 倍率輸入欄位
 - 影像增強按鈕
 - 放大鏡按鈕
+- 閥值按鈕
 """
 from PySide6.QtWidgets import (QToolBar, QLabel, QSpinBox, QWidget,
-                                QHBoxLayout, QColorDialog)
+                                QHBoxLayout, QColorDialog, QLineEdit)
 from PySide6.QtCore import Signal, Qt, QSettings
 from PySide6.QtGui import (QColor, QIcon, QPixmap, QPainter,
-                            QActionGroup, QAction)
+                            QActionGroup, QAction, QDoubleValidator)
 
 from views.image_view import ViewMode
 
@@ -26,16 +28,18 @@ class ToolBar(QToolBar):
     enhancement_clicked = Signal()
     magnifier_clicked = Signal()
     bg_color_changed = Signal(QColor)
+    scale_changed = Signal(float)
+    threshold_clicked = Signal()
 
     def __init__(self, parent=None):
         super().__init__("工具列", parent)
         self.setMovable(False)
 
         self._current_color = QColor(0, 255, 0)
+        self._settings = QSettings("OptiMeasure", "AOI")
 
         # 從 QSettings 恢復上次顏色
-        _settings = QSettings("OptiMeasure", "AOI")
-        _saved = _settings.value("toolbar/color")
+        _saved = self._settings.value("toolbar/color")
         if _saved:
             self._current_color = QColor(_saved)
 
@@ -103,14 +107,35 @@ class ToolBar(QToolBar):
         layout.addWidget(self._line_width_spin)
         self.addWidget(container)
 
+        # 倍率輸入（直接加入 toolbar，避免容器被拉伸導致 Label 與 Edit 分離）
+        self.addWidget(QLabel("倍率"))
+        self._scale_edit = QLineEdit()
+        self._scale_edit.setPlaceholderText("1.000")
+        self._scale_edit.setFixedWidth(70)
+        self._scale_edit.setValidator(QDoubleValidator(0.0, 99999.0, 6))
+        # Restore persisted value
+        _saved_scale = self._settings.value("toolbar/scale", "")
+        if _saved_scale:
+            self._scale_edit.setText(str(_saved_scale))
+        self._scale_edit.textChanged.connect(self._on_scale_changed)
+        self.addWidget(self._scale_edit)
+
     def _on_pick_color(self):
         """開啟顏色選擇對話框"""
         color = QColorDialog.getColor(self._current_color, self, "選擇線條顏色")
         if color.isValid():
             self._current_color = color
-            QSettings("OptiMeasure", "AOI").setValue("toolbar/color", color.name())
+            self._settings.setValue("toolbar/color", color.name())
             self._update_color_icon()
             self.color_changed.emit(color)
+
+    def _on_scale_changed(self, text: str):
+        try:
+            value = float(text)
+        except ValueError:
+            value = 0.0
+        self._settings.setValue("toolbar/scale", text)
+        self.scale_changed.emit(value)
 
     def _update_color_icon(self):
         """更新顏色按鈕的色塊圖示"""
@@ -145,6 +170,12 @@ class ToolBar(QToolBar):
         if btn:
             btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
 
+        self.addSeparator()
+
+        threshold_action = QAction("閥值", self)
+        threshold_action.triggered.connect(self.threshold_clicked)
+        self.addAction(threshold_action)
+
     def _on_toggle_bg(self):
         self._bg_is_dark = not self._bg_is_dark
         self._update_bg_icon()
@@ -165,3 +196,10 @@ class ToolBar(QToolBar):
     @property
     def current_color(self) -> QColor:
         return self._current_color
+
+    @property
+    def scale(self) -> float:
+        try:
+            return float(self._scale_edit.text())
+        except ValueError:
+            return 0.0
