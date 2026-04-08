@@ -105,6 +105,8 @@ class MainController(QObject):
         image_view.set_background_color(QColor(0, 0, 0))
         # Sync initial scale value from toolbar (restored from QSettings)
         right_panel.set_scale(toolbar.scale)
+        # Sync initial overlay color for threshold
+        self._image_model.set_overlay_color(toolbar.current_color)
 
     # ──────────────────────────────────────────────
     # 影像載入
@@ -121,14 +123,14 @@ class MainController(QObject):
 
     def _on_image_loaded(self, width: int, height: int):
         """ImageModel 載入成功 → 更新畫布顯示"""
-        self._window.image_view.set_image(self._image_model.display_image)
+        self._window.image_view.set_image(self._image_model.get_visible_image())
         # 若放大鏡已開啟，更新來源影像
         if self._magnifier_dialog:
             self._magnifier_dialog.set_source_image(self._image_model.original_image)
 
     def _on_display_image_updated(self):
-        """display_image 更新（增強效果改變）→ 重繪畫布"""
-        self._window.image_view.set_image(self._image_model.display_image)
+        """display_image 更新（增強效果改變或閥值改變）→ 重繪畫布"""
+        self._window.image_view.set_image(self._image_model.get_visible_image())
 
     # ──────────────────────────────────────────────
     # StatusBar 像素資訊
@@ -145,6 +147,7 @@ class MainController(QObject):
 
     def _on_color_changed(self, color: QColor):
         self._window.image_view.set_draw_color(color)
+        self._image_model.set_overlay_color(color)
 
     def _on_line_width_changed(self, width: int):
         self._window.image_view.set_draw_line_width(width)
