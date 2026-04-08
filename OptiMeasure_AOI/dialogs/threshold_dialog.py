@@ -46,6 +46,7 @@ class HistogramWidget(QWidget):
         painter.fillRect(self.rect(), QColor(240, 240, 240))
 
         if self._hist is None:
+            painter.end()
             return
 
         w = self.width()
@@ -67,6 +68,7 @@ class HistogramWidget(QWidget):
         painter.drawLine(low_x, 0, low_x, h)
         high_x = int(self._high * bar_w)
         painter.drawLine(high_x, 0, high_x, h)
+        painter.end()
 
 
 class ThresholdDialog(QDialog):
