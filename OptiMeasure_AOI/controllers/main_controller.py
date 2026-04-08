@@ -64,6 +64,7 @@ class MainController(QObject):
         toolbar.enhancement_clicked.connect(self._open_enhancement_dialog)
         toolbar.magnifier_clicked.connect(self._open_magnifier_dialog)
         toolbar.bg_color_changed.connect(image_view.set_background_color)
+        toolbar.scale_changed.connect(right_panel.set_scale)
 
         # ImageView → 影像載入
         image_view.image_dropped.connect(self._on_image_dropped)
@@ -102,6 +103,8 @@ class MainController(QObject):
         image_view.set_draw_color(toolbar.current_color)
         # 啟動時套用預設背景色（黑色）
         image_view.set_background_color(QColor(0, 0, 0))
+        # Sync initial scale value from toolbar (restored from QSettings)
+        right_panel.set_scale(toolbar.scale)
 
     # ──────────────────────────────────────────────
     # 影像載入
