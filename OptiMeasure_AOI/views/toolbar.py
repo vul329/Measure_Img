@@ -112,7 +112,7 @@ class ToolBar(QToolBar):
         scale_layout = QHBoxLayout(scale_container)
         scale_layout.setContentsMargins(4, 0, 4, 0)
         scale_layout.setSpacing(4)
-        scale_layout.addWidget(QLabel("倍率:"))
+        scale_layout.addWidget(QLabel("倍率"))
         self._scale_edit = QLineEdit()
         self._scale_edit.setPlaceholderText("1.000")
         self._scale_edit.setFixedWidth(70)

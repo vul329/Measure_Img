@@ -16,12 +16,12 @@ def test_scale_negative_returns_dashes():
 
 def test_circle_real_length():
     params = {'type': 'Circle', 'radius': 12.5}
-    assert compute_real_length(params, 0.8) == '10.000'
+    assert compute_real_length(params, 0.8) == '10.00000'
 
 
 def test_line_real_length():
     params = {'type': 'Line', 'length': 100.0}
-    assert compute_real_length(params, 0.1) == '10.000'
+    assert compute_real_length(params, 0.1) == '10.00000'
 
 
 def test_rect_always_dashes():
@@ -29,6 +29,6 @@ def test_rect_always_dashes():
     assert compute_real_length(params, 2.0) == '--'
 
 
-def test_three_decimal_precision():
+def test_five_decimal_precision():
     params = {'type': 'Circle', 'radius': 10.0}
-    assert compute_real_length(params, 1.2345) == '12.345'
+    assert compute_real_length(params, 1.2345) == '12.34500'

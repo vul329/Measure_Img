@@ -13,7 +13,7 @@ def compute_real_length(params: dict, scale: float) -> str:
         return '--'
     shape_type = params.get('type', '')
     if shape_type == 'Circle':
-        return f"{params.get('radius', 0.0) * scale:.3f}"
+        return f"{params.get('radius', 0.0) * scale:.5f}"
     if shape_type == 'Line':
-        return f"{params.get('length', 0.0) * scale:.3f}"
+        return f"{params.get('length', 0.0) * scale:.5f}"
     return '--'
